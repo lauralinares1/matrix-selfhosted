@@ -1,0 +1,59 @@
+# ═══════════════════════════════════════════════════════════════
+# homeserver.yaml — matrix.yourdomain.com
+# ═══════════════════════════════════════════════════════════════
+server_name: "matrix.yourdomain.com"
+
+# public_baseurl is the URL clients use to connect.
+# Must match exactly the domain Traefik exposes.
+public_baseurl: "https://matrix.yourdomain.com/"
+
+# ── Listener ────────────────────────────────────────────────────
+# Port 8008: internal HTTP only, never exposed directly.
+# Traefik terminates HTTPS and forwards here.
+# x_forwarded: true — mandatory with a reverse proxy. Without this,
+# Synapse sees Traefik's IP as the origin of all connections.
+# bind_addresses ['::'] — accepts both IPv4 and IPv6 inside the container.
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    bind_addresses: ['::']
+    resources:
+      - names: [client, federation]
+        compress: false
+
+# ── Database ─────────────────────────────────────────────────────
+# The password is read from the POSTGRES_PASSWORD environment variable
+# passed in docker-compose
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: <strong_password__same_as_.env>
+    database: synapse
+    host: postgres
+    cp_min: 5
+    cp_max: 10
+
+# ── Paths — must be inside /data (the mounted volume) ────────────
+media_store_path: /data/media_store
+signing_key_path: "/data/matrix.yourdomain.com.signing.key"
+log_config: "/data/matrix.yourdomain.com.log.config"
+
+# ── User registration ─────────────────────────────────────────────
+# enable_registration: false = nobody can register freely.
+# registration_shared_secret = allows creating admin users with the
+# register_new_matrix_user command even when registration is closed.
+enable_registration: false
+registration_shared_secret: <random_key__same_as_.env>
+
+# ── Trusted key servers ───────────────────────────────────────────
+# Removes the trusted_key_servers WARNING from the logs.
+trusted_key_servers:
+  - server_name: "matrix.org"
+suppress_key_server_warning: true
+
+# ── Statistics ────────────────────────────────────────────────────
+# Must be boolean true/false, NOT "yes"/"no".
+report_stats: true

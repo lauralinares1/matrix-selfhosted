@@ -1,0 +1,13 @@
+DataDirectory /var/lib/tor
+
+# HiddenServiceDir: directory where Tor stores the hidden service keys.
+# Must be exactly /var/lib/tor/hidden_service/ inside the container,
+# which is what we map with the volume ./tor/hidden_service:/var/lib/tor/hidden_service.
+HiddenServiceDir /var/lib/tor/hidden_service/
+
+# Port 80 of the hidden service is forwarded to port 8008 of Synapse.
+# "matrix-synapse" is the container name on the matrix-internal network.
+HiddenServicePort 80 matrix-synapse:8008
+
+# Only v3 hidden services (more secure, longer 56-character addresses)
+HiddenServiceVersion 3

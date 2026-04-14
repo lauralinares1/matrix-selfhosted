@@ -1,0 +1,11 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://matrix.yourdomain.com",
+      "server_name": "matrix.yourdomain.com"
+    }
+  },
+  "brand": "Element",
+  "disable_guests": true,
+  "default_federate": false
+}

@@ -1,0 +1,99 @@
+# ════════════════════════════════════════════════════════════════
+# Matrix Stack: Synapse + Element + PostgreSQL + Tor
+# Domain: matrix.yourdomain.com / element.yourdomain.com
+# ════════════════════════════════════════════════════════════════
+services:
+  # ── PostgreSQL ───────────────────────────────────────────────────
+  # POSTGRES_INITDB_ARGS forces locale C and UTF8 encoding.
+  # Without this the cluster is created with en_US.utf8 and Synapse fails.
+  # Password comes from .env. Only accessible on the internal network.
+  postgres:
+    image: postgres:16-alpine
+    container_name: matrix-postgres
+    restart: unless-stopped
+    networks:
+      - matrix-internal
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: synapse
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+      TZ: Europe/Madrid
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+
+  # ── Synapse ──────────────────────────────────────────────────────
+  # depends_on with service_healthy guarantees Synapse waits until
+  # PostgreSQL is ready before attempting to connect
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: matrix-synapse
+    restart: unless-stopped
+    networks:
+      - matrix-internal
+      - homelab_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TZ: Europe/Madrid
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REGISTRATION_SECRET: ${REGISTRATION_SECRET}
+    volumes:
+      - ./synapse:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelab_net"
+      - "traefik.http.routers.matrix.rule=Host(`matrix.yourdomain.com`)"
+      - "traefik.http.routers.matrix.entrypoints=websecure"
+      - "traefik.http.routers.matrix.tls.certresolver=letsencrypt"
+      - "traefik.http.services.matrix.loadbalancer.server.port=8008"
+
+  # ── Element Web ──────────────────────────────────────────────────
+  # Only needs the proxy network for Traefik to reach it.
+  # config.json mounted read-only.
+  element:
+    image: vectorim/element-web:latest
+    container_name: matrix-element
+    restart: unless-stopped
+    networks:
+      - homelab_net
+    volumes:
+      - ./element/config.json:/app/config.json:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelab_net"
+      - "traefik.http.routers.element.rule=Host(`element.yourdomain.com`)"
+      - "traefik.http.routers.element.entrypoints=websecure"
+      - "traefik.http.routers.element.tls.certresolver=letsencrypt"
+      - "traefik.http.services.element.loadbalancer.server.port=80"
+
+  # ── Tor ──────────────────────────────────────────────────────────
+  # Internal network only. Does not need Traefik.
+  # The hidden_service volume must belong to UID 100 (see Step 5).
+  tor:
+    image: osminogin/tor-simple
+    container_name: matrix-tor
+    restart: unless-stopped
+    networks:
+      - matrix-internal
+    depends_on:
+      - synapse
+    volumes:
+      - ./tor/torrc:/etc/tor/torrc:ro
+      - ./tor/hidden_service:/var/lib/tor/hidden_service
+
+networks:
+  # Traefik's network — already exists in the homelab, not created here
+  homelab_net:
+    external: true
+  # Internal network exclusive to this stack.
+  # Synapse, PostgreSQL and Tor can see each other but are not accessible from outside.
+  matrix-internal:
+    name: matrix-internal
