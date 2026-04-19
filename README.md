@@ -135,10 +135,7 @@ docker compose logs -f
 
 ## Documentation
 
-| Language | Link |
-|---|---|
-| 🇬🇧 English | [Guide - Documentation](https://docs.iamlaura.dev/share/ycy744eqax/p/matrix-self-hosted-deployment-guide-english-lPqoV5tfrB) |
-| 🇪🇸 Español | [Guía - Documentación](https://docs.iamlaura.dev/share/vl6t405os9/p/matrix-self-hosted-guia-de-despliegue-espanol-DTwO7u3s2W) |
+🇬🇧 English -- [Guide - Documentation](https://lauralinares1.github.io/public-docs/guias/matrix/)
 
 The guides cover: architecture explanation, every configuration file with annotated comments, common error fixes, user creation, mobile app setup, and Tor verification.
 
